@@ -32,17 +32,52 @@ def compute_coherence_embed(shard_embeddings: np.ndarray) -> float:
     
     return float(np.mean(similarities))
 
-def compute_coherence_retrieval(shard_docs: List[str], query_set: List[Dict[str, Any]]) -> float:
+def compute_coherence_retrieval(
+    shard_indices: List[int], 
+    query_set: List[Dict[str, Any]], 
+    all_embeddings: np.ndarray, 
+    query_embeddings: np.ndarray, 
+    k: int = 5
+) -> float:
     """
     Compute retrieval-based coherence (Option B).
-    Requires a query set. Returns Recall@5 within the shard.
+    Returns Recall@k within the shard.
     
     Args:
-        shard_docs: List of documents in the shard.
-        query_set: List of query dicts containing 'query' and 'gold_answer'.
+        shard_indices: List of document indices in the shard.
+        query_set: List of query dicts containing 'doc_id'.
+        all_embeddings: Full corpus embeddings.
+        query_embeddings: Embeddings for the queries.
+        k: Number of top documents to retrieve.
         
     Returns:
-        float: Recall@5 score
+        float: Recall@k score
     """
-    # Stub for end-to-end evaluation phase (Week 11-12)
-    raise NotImplementedError("Retrieval coherence will be implemented in the evaluation phase.")
+    if len(shard_indices) == 0 or len(query_set) == 0:
+        return 0.0
+        
+    shard_embs = all_embeddings[shard_indices]
+    hits = 0.0
+    
+    for i, q in enumerate(query_set):
+        gold_doc_id = q.get('doc_id')
+        
+        # Check if the relevant document is even in this shard
+        if gold_doc_id not in shard_indices:
+            continue
+            
+        # Retrieve top k within shard
+        q_emb = query_embeddings[i]
+        # dot product is cosine similarity for normalized vectors
+        sims = np.dot(shard_embs, q_emb)
+        
+        # indices relative to the shard
+        top_k_idx_relative = np.argsort(sims)[-k:]
+        # map back to full corpus indices
+        top_k_idx = [shard_indices[idx] for idx in top_k_idx_relative]
+        
+        if gold_doc_id in top_k_idx:
+            hits += 1.0
+            
+    # As per algorithm: hits / |Q_eval|
+    return hits / len(query_set)

@@ -65,6 +65,45 @@ def main():
     
     for i, s in enumerate(shards):
         print(f"  Shard {i}: {len(s)} docs")
+        
+    print("\nTesting QA Pipeline (Mock Mode)...")
+    from src.eval.qa_pipeline import ClientRAG, MultiLLMFusion, compute_exact_match, compute_f1
+    from src.shade.metrics import compute_coherence_retrieval
+    
+    # Create mock clients for the 3 shards
+    clients = []
+    providers = ["openai", "anthropic", "gemini"]
+    for i, p in enumerate(providers):
+        if i < len(shards):
+            # Pass subset of docs and embeddings for this shard
+            shard_docs = [medqa_docs_subset[idx] for idx in shards[i]]
+            shard_embs = medqa_embs[shards[i]]
+            clients.append(ClientRAG(p, shard_docs, shard_embs))
+            
+    # Test fusion
+    fusion = MultiLLMFusion(clients)
+    
+    # Take first query from medqa
+    test_query = medqa_qa[0]['query']
+    test_query_emb = embedder.embed_corpus([test_query], "medqa_test_queries")[0]
+    
+    print(f"Testing Fusion on Query: '{test_query}'")
+    results = fusion.fuse_answers(test_query, test_query_emb)
+    print(f"Fused Result: {results['fused']}")
+    
+    # Test metrics
+    test_gold = medqa_qa[0]['gold_answer']
+    em = compute_exact_match(results['fused'], test_gold)
+    f1 = compute_f1(results['fused'], test_gold)
+    print(f"Exact Match: {em}, F1: {f1:.4f}")
+    
+    # Test retrieval coherence
+    # Generate query embeddings for all 50 queries
+    all_queries = [qa['query'] for qa in medqa_qa[:50]]
+    query_embs = embedder.embed_corpus(all_queries, "medqa_test_queries")
+    
+    recall = compute_coherence_retrieval(shards[0], medqa_qa[:50], medqa_embs, query_embs, k=5)
+    print(f"Retrieval Coherence (Recall@5) for Shard 0: {recall:.4f}")
 
     print("\nAll pipeline tests passed!")
 
