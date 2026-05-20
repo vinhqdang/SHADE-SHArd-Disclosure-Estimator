@@ -1,6 +1,8 @@
 import sys
 from src.utils.data_loader import load_medqa, load_legalbench
 from src.utils.embeddings import DocumentEmbedder
+import warnings
+warnings.filterwarnings('ignore')
 
 def main():
     print("Testing MedQA Loader...")
@@ -45,6 +47,24 @@ def main():
     proxy_shade = compute_proxy_shade(medqa_shard_indices, medqa_embs, k_clusters=5)
     print(f"Proxy SHADE: {proxy_shade:.4f}")
     assert 0.0 <= proxy_shade <= 1.0, f"Proxy SHADE out of bounds: {proxy_shade}"
+
+    print("\nTesting CoShard Pipeline...")
+    from src.coshard.graph import build_similarity_graph
+    from src.coshard.partition import coshard_partition
+    
+    # We will test on the 50 MedQA embeddings
+    print("Building similarity graph...")
+    graph = build_similarity_graph(medqa_embs, threshold=0.3, top_k=10)
+    print(f"Graph has {graph.vcount()} vertices and {graph.ecount()} edges")
+    
+    print("Running CoShard partition algorithm (n_shards=3)...")
+    shards = coshard_partition(graph, medqa_embs, n_shards=3, max_iterations=2)
+    print(f"Generated {len(shards)} shards.")
+    total_docs = sum(len(s) for s in shards)
+    assert total_docs == len(medqa_docs_subset), f"Lost documents during partitioning: {total_docs} vs {len(medqa_docs_subset)}"
+    
+    for i, s in enumerate(shards):
+        print(f"  Shard {i}: {len(s)} docs")
 
     print("\nAll pipeline tests passed!")
 
