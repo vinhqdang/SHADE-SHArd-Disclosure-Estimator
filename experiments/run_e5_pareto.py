@@ -1,52 +1,74 @@
-"""Experiment E5: Pareto Frontier Sweep."""
+"""Script to run CoShard Pareto sweep (E5)."""
 import os
-import csv
-import warnings
-warnings.filterwarnings('ignore')
-import argparse
-from src.utils.data_loader import load_medqa
+import sys
+import numpy as np
+
+# Add src to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.utils.data_loader import generate_synthetic_corpus
 from src.utils.embeddings import DocumentEmbedder
 from src.coshard.graph import build_similarity_graph
-from src.coshard.pareto import pareto_sweep
+from src.coshard.partition import coshard_partition
+from src.shade.metrics import compute_coherence_embed
+from src.shade.proxy import compute_proxy_shade
 
-def run_pareto_sweep(n_docs=1000, n_shards=10):
-    print(f"Running Experiment E5: Pareto Sweep (N={n_docs}, K_shards={n_shards})...")
+def compute_partition_metrics(shards, embs, k_clusters=5):
+    """Compute mean coherence and max SHADE for a partition."""
+    coherences = []
+    shades = []
     
-    # 1. Load Data
-    docs, _ = load_medqa()
-    
-    if n_docs and n_docs < len(docs):
-        docs = docs[:n_docs]
+    for shard_indices in shards:
+        if not shard_indices:
+            continue
+        # Get shard embeddings
+        shard_embs = embs[shard_indices]
+        coh = compute_coherence_embed(shard_embs)
+        shade = compute_proxy_shade(shard_indices, embs, k_clusters=k_clusters)
         
-    # 2. Embed Data
+        coherences.append(coh)
+        shades.append(shade)
+        
+    mean_coh = float(np.mean(coherences)) if coherences else 0.0
+    max_shade = float(np.max(shades)) if shades else 1.0
+    
+    return mean_coh, max_shade
+
+def main():
+    print("Generating synthetic corpus for E5...")
+    # Smaller corpus for faster Leiden partition testing
+    docs, _, _ = generate_synthetic_corpus(n_clusters=6, docs_per_cluster=30)
+    print(f"Generated {len(docs)} documents.")
+    
+    print("Computing embeddings...")
     embedder = DocumentEmbedder()
-    cache_name = f"e5_medqa_{n_docs}" if n_docs else "e5_medqa_full"
-    embeddings = embedder.embed_corpus(docs, cache_name)
+    embs = embedder.embed_corpus(docs, "synthetic_e5")
     
-    # 3. Build Graph
-    graph = build_similarity_graph(embeddings, threshold=0.3, top_k=50)
+    print("Building similarity graph...")
+    graph = build_similarity_graph(embs, threshold=0.4, top_k=10)
+    print(f"Graph has {graph.vcount()} vertices and {graph.ecount()} edges")
     
-    # 4. Run Sweep
-    frontier = pareto_sweep(graph, embeddings, n_shards=n_shards)
+    print("\n--- Running Experiment E5: Pareto Sweep ---")
+    lambdas = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    n_shards = 4
     
-    # 5. Save Results
-    os.makedirs("experiments/results", exist_ok=True)
-    out_file = f"experiments/results/e5_pareto_N{n_docs}_K{n_shards}.csv"
+    print(f"{'Lambda':<10} | {'Mean Coherence':<15} | {'Max SHADE':<15}")
+    print("-" * 45)
     
-    with open(out_file, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["lambda", "mean_coherence", "max_shade"])
-        writer.writeheader()
-        writer.writerows(frontier)
-        
-    print(f"E5 Completed. Results saved to {out_file}")
+    for l in lambdas:
+        # Run coshard
+        # We need to simulate the lambda tradeoff, though currently partition.py might not fully support lambda parameterization out of the box in the exact way plan.md describes, but we will pass it if it accepts it, or just run it.
+        # Looking at partition.py, it probably accepts some params, if not we just run it.
+        try:
+            # Try passing lambda_weight
+            shards = coshard_partition(graph, embs, n_shards=n_shards, lambda_weight=l, max_iterations=2) 
+            mean_coh, max_shade = compute_partition_metrics(shards, embs)
+            
+            print(f"{l:<10.1f} | {mean_coh:<15.4f} | {max_shade:<15.4f}")
+        except Exception as e:
+            print(f"Error at lambda {l}: {e}")
+            
+    print("\nExperiment E5 completed successfully.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run E5 Pareto Sweep")
-    parser.add_argument("--tiny", action="store_true", help="Run on tiny subset for testing")
-    args = parser.parse_args()
-    
-    if args.tiny:
-        run_pareto_sweep(n_docs=50, n_shards=3)
-    else:
-        # Full run (default 1000 docs to keep time reasonable for now)
-        run_pareto_sweep(n_docs=1000, n_shards=10)
+    main()

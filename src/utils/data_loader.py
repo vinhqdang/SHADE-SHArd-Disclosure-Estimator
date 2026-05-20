@@ -68,5 +68,60 @@ def load_dataset_by_name(name: str, split: str = "train") -> Tuple[List[str], Li
         return load_medqa(split=split)
     elif name.lower() == "legalbench":
         return load_legalbench(split=split)
+    elif name.lower() == "synthetic":
+        docs, qa, _ = generate_synthetic_corpus()
+        return docs, qa
     else:
         raise ValueError(f"Unknown dataset: {name}")
+
+def generate_synthetic_corpus(n_clusters: int = 10, docs_per_cluster: int = 100) -> Tuple[List[str], List[Dict], Dict]:
+    """
+    Generate a synthetic corpus with known ground-truth disclosure.
+    
+    Args:
+        n_clusters: Number of semantic clusters (topics).
+        docs_per_cluster: Number of documents per cluster.
+        
+    Returns:
+        documents: List of document texts.
+        qa_pairs: Dummy QA pairs for compatibility.
+        ground_truth: Dictionary mapping document index to cluster info for exact SHADE calculation.
+    """
+    import random
+    random.seed(42)
+    
+    documents = []
+    qa_pairs = []
+    ground_truth = {'doc_to_cluster': {}, 'cluster_claims': {}}
+    
+    # Generate abstract claims for each cluster
+    for k in range(n_clusters):
+        # 100 specific claims per cluster
+        ground_truth['cluster_claims'][k] = [f"Claim_C{k}_{i}" for i in range(100)]
+        
+    # Global claims shared across all clusters (5% overlap)
+    global_claims = [f"Claim_Global_{i}" for i in range(20)]
+    
+    doc_idx = 0
+    for k in range(n_clusters):
+        cluster_specific_claims = ground_truth['cluster_claims'][k]
+        for d in range(docs_per_cluster):
+            # A document gets 10 specific claims (80% of its content) and 2 global claims (20%)
+            doc_specific = random.sample(cluster_specific_claims, 10)
+            doc_global = random.sample(global_claims, 2)
+            
+            # Form natural-looking sentences so embeddings don't break completely
+            text = f"This document discusses topic {k}. It asserts that " + " and ".join(doc_specific) + ". Additionally, it notes that " + " and ".join(doc_global) + "."
+            documents.append(text)
+            
+            qa_pairs.append({
+                'query': f"What does document {doc_idx} say about topic {k}?",
+                'gold_answer': " ".join(doc_specific),
+                'id': f"synth_{doc_idx}",
+                'doc_id': doc_idx
+            })
+            
+            ground_truth['doc_to_cluster'][doc_idx] = k
+            doc_idx += 1
+            
+    return documents, qa_pairs, ground_truth
