@@ -1,6 +1,6 @@
 # CoShard Architecture Diagram
 
-This flowchart illustrates the conceptual pipeline of the CoShard algorithm, from raw text ingestion to final privacy-preserving shards.
+This flowchart illustrates the complete CoShard pipeline, demonstrating both the offline privacy-preserving partitioning of the corpus and the online routing of a user query across the distributed shards.
 
 ```mermaid
 flowchart TD
@@ -9,29 +9,33 @@ flowchart TD
     classDef process fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
     classDef alg fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
     classDef output fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#000
+    classDef query fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#000
+    classDef router fill:#d1c4e9,stroke:#5e35b1,stroke-width:2px,color:#000
     classDef note fill:#ffffff,stroke:#999,stroke-width:1px,stroke-dasharray: 5 5,color:#555
     
-    %% Nodes
-    Corpus[Raw Document Corpus]:::input
-    Embed[Embedding Model<br/>(e.g., BGE-Large)]:::process
-    SimMatrix[Cosine Similarity Matrix]:::process
-    Graph[K-NN Similarity Graph<br/>(Edges = Similarity > τ)]:::process
-    
-    subgraph CoShard Algorithm
-        Leiden[Phase 1: Leiden Modularity<br/>Maximize Semantic Coherence]:::alg
-        Refine[Phase 2: SHADE Penalty Refinement<br/>Node Swapping via Gain Function]:::alg
+    subgraph Phase 1: Offline Corpus Partitioning
+        Corpus[Raw Document Corpus]:::input --> Embed1[Embedding Model]:::process
+        Embed1 -->|Vectors| Graph[K-NN Similarity Graph]:::process
+        
+        Graph --> Leiden[Leiden Modularity Max]:::alg
+        Leiden -->|Initial Communities| Refine[SHADE Penalty Refinement]:::alg
+        Refine -->|Converged Partition| Shards[Distributed Privacy Shards]:::output
     end
     
-    Shards[Final Output Shards<br/>Balanced Utility & Privacy]:::output
-    
-    %% Edges
-    Corpus --> Embed
-    Embed -->|Vectors| SimMatrix
-    SimMatrix -->|Thresholding| Graph
-    
-    Graph --> Leiden
-    Leiden -->|Initial Communities| Refine
-    Refine -->|Converged Partition| Shards
+    subgraph Phase 2: Online Query Routing (RAG)
+        UserQuery((User Query)):::query --> Embed2[Embedding Model]:::process
+        Embed2 --> Router{Central Router}:::router
+        
+        Shards -.->|Centroid Embeddings| Router
+        Router == "Top-K Selection" ==> Shards
+        
+        Shards --> LLM1[Local LLM 1]:::process
+        Shards --> LLM2[Local LLM 2]:::process
+        
+        LLM1 --> Agg[Aggregator]:::process
+        LLM2 --> Agg
+        Agg --> Answer((Final Answer)):::query
+    end
     
     %% Annotations
     Note1["Gain = λΔ(Coh) - (1-λ)Δ(SHADE)"]:::note
