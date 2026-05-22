@@ -41,14 +41,14 @@ Our proposed technique is outlined visually. We construct a K-Nearest Neighbor (
 
 % You can reference the conceptual diagram (Mermaid) here, or include a high-res PDF export of it.
 
-\subsection{Visualizing the Partition}
-To intuitively understand the CoShard routing mechanism, consider a subset of highly connected medical queries (Figure \ref{fig:example_network}).
+\subsection{Visualizing the Partition Pipeline}
+To intuitively understand the CoShard routing mechanism, consider a subset of highly connected medical queries (Figure \ref{fig:pipeline_overview}).
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{../figures/example_network.png}}
-\caption{A concrete example of the CoShard routing mechanism. Highly similar documents (connected by thick edges) are intentionally placed into distinct, colored shards to prevent adversarial topic reconstruction.}
-\label{fig:example_network}
-\end{figure}
+\begin{figure*}[htbp]
+\centerline{\includegraphics[width=\textwidth]{../figures/pipeline_overview.png}}
+\caption{The complete CoShard pipeline. (A) Raw documents and the User Query are embedded into semantic space. (B) A K-NN similarity graph connects highly related topics (e.g., Cardiology). (C) The CoShard algorithm explicitly forces connected clusters into different shards (colors) to minimize the SHADE disclosure penalty. (D) At inference, a User Query is safely routed to documents distributed across multiple shards, preventing any single shard from inferring the full topic.}
+\label{fig:pipeline_overview}
+\end{figure*}
 
 \section{Experiments}
 \subsection{The No-Free-Lunch Theorem}
