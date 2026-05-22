@@ -48,25 +48,34 @@ def main():
     graph = build_similarity_graph(embs, threshold=0.4, top_k=10)
     print(f"Graph has {graph.vcount()} vertices and {graph.ecount()} edges")
     
+    from src.eval.baselines import split_rag_partition
+    
+    print("Generating queries for SPLIT-RAG...")
+    queries = ["Synthetic query " + str(i) for i in range(100)]
+    query_embs = embedder.embed_corpus(queries, "synthetic_e5_queries")
+    
     print("\n--- Running Experiment E5: Pareto Sweep ---")
     lambdas = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
     n_shards = 4
     
-    print(f"{'Lambda':<10} | {'Mean Coherence':<15} | {'Max SHADE':<15}")
-    print("-" * 45)
+    print(f"{'Method/Lambda':<15} | {'Mean Coherence':<15} | {'Max SHADE':<15}")
+    print("-" * 50)
     
     for l in lambdas:
-        # Run coshard
-        # We need to simulate the lambda tradeoff, though currently partition.py might not fully support lambda parameterization out of the box in the exact way plan.md describes, but we will pass it if it accepts it, or just run it.
-        # Looking at partition.py, it probably accepts some params, if not we just run it.
         try:
-            # Try passing lambda_weight
             shards = coshard_partition(graph, embs, n_shards=n_shards, lambda_weight=l, max_iterations=2) 
             mean_coh, max_shade = compute_partition_metrics(shards, embs)
-            
-            print(f"{l:<10.1f} | {mean_coh:<15.4f} | {max_shade:<15.4f}")
+            print(f"CoShard (l={l:.1f}) | {mean_coh:<15.4f} | {max_shade:<15.4f}")
         except Exception as e:
             print(f"Error at lambda {l}: {e}")
+            
+    # Add SPLIT-RAG as a comparison point
+    try:
+        shards = split_rag_partition(embs, query_embs, n_shards, top_k=5)
+        mean_coh, max_shade = compute_partition_metrics(shards, embs)
+        print(f"{'SPLIT-RAG':<15} | {mean_coh:<15.4f} | {max_shade:<15.4f}")
+    except Exception as e:
+        print(f"Error computing SPLIT-RAG: {e}")
             
     print("\nExperiment E5 completed successfully.")
 

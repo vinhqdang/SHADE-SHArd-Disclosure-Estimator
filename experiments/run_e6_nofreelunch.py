@@ -28,6 +28,11 @@ def evaluate_partition(shards, embs, k_clusters):
     
     return np.mean(coherences) if coherences else 0.0, np.max(shades) if shades else 1.0
 
+import leidenalg
+from sklearn.cluster import KMeans
+
+from src.eval.baselines import run_leiden_vanilla, split_rag_partition
+
 def main():
     print("Generating synthetic corpus for E6...")
     docs, _, _ = generate_synthetic_corpus(n_clusters=8, docs_per_cluster=50)
@@ -45,31 +50,51 @@ def main():
     
     results = []
     
-    # 1. Random Partitions
+    # 1. Random Partitions (Weak Baseline)
     print("Generating Random Partitions...")
-    for _ in range(20):
-        indices = list(range(n_docs))
-        random.shuffle(indices)
-        chunk_size = n_docs // n_shards
-        shards = [indices[i*chunk_size : (i+1)*chunk_size] for i in range(n_shards)]
-        # Handle remainder
-        if n_docs % n_shards != 0:
-            shards[-1].extend(indices[n_shards*chunk_size:])
-            
-        coh, shade = evaluate_partition(shards, embs, k_clusters)
-        results.append(("Random", coh, shade))
+    indices = list(range(n_docs))
+    random.shuffle(indices)
+    chunk_size = n_docs // n_shards
+    shards = [indices[i*chunk_size : (i+1)*chunk_size] for i in range(n_shards)]
+    if n_docs % n_shards != 0:
+        shards[-1].extend(indices[n_shards*chunk_size:])
+    coh, shade = evaluate_partition(shards, embs, k_clusters)
+    results.append(("Random (Weak)", coh, shade))
         
-    # 2. CoShard Partitions at various lambdas
-    print("Generating CoShard Partitions...")
+    # 2. KMeans Partitioning (Strong Coherence Baseline)
+    print("Generating KMeans Partitions...")
+    kmeans = KMeans(n_clusters=n_shards, random_state=42)
+    labels = kmeans.fit_predict(embs)
+    kmeans_shards = [[] for _ in range(n_shards)]
+    for i, label in enumerate(labels):
+        kmeans_shards[label].append(i)
+    coh, shade = evaluate_partition(kmeans_shards, embs, k_clusters)
+    results.append(("KMeans (Strong)", coh, shade))
+
+    # 3. Leiden-Vanilla Partitioning (Strong Graph Baseline)
+    print("Generating Leiden-Vanilla Partitions...")
     graph = build_similarity_graph(embs, threshold=0.3, top_k=15)
-    
-    lambdas = np.linspace(0.0, 1.0, 11)
+    leiden_shards = run_leiden_vanilla(graph, n_shards)
+    coh, shade = evaluate_partition(leiden_shards, embs, k_clusters)
+    results.append(("Leiden-Vanilla (Strong)", coh, shade))
+        
+    # 4. SPLIT-RAG Partitioning (Strong RAG Baseline)
+    print("Generating SPLIT-RAG Partitions...")
+    queries = ["Synthetic query " + str(i) for i in range(100)]
+    query_embs = embedder.embed_corpus(queries, "synthetic_e6_queries")
+    split_rag_shards = split_rag_partition(embs, query_embs, n_shards, top_k=5)
+    coh, shade = evaluate_partition(split_rag_shards, embs, k_clusters)
+    results.append(("SPLIT-RAG (Strong)", coh, shade))
+        
+    # 5. CoShard Partitions at various lambdas
+    print("Generating CoShard Partitions...")
+    lambdas = [0.2, 0.5, 0.8]
     for l in lambdas:
         shards = coshard_partition(graph, embs, n_shards=n_shards, lambda_weight=l, max_iterations=2)
         coh, shade = evaluate_partition(shards, embs, k_clusters)
         results.append((f"CoShard(l={l:.1f})", coh, shade))
         
-    print(f"\n{'Partition Type':<20} | {'Mean Coherence':<15} | {'Max SHADE':<15} | {'Theoretical Bound':<20}")
+    print(f"\n{'Partition Type':<25} | {'Mean Coherence':<15} | {'Max SHADE':<15} | {'Theoretical Bound':<20}")
     print("-" * 78)
     
     # Theoretical Bound f(tau, n, H_s) formulation for demo:
