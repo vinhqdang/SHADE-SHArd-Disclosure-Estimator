@@ -38,12 +38,17 @@ def simulate_adversarial_attack():
         fraction_observed = max_docs_in_single_shard / k_topic_docs
         max_context_fractions.append(fraction_observed)
         
-        # If the max observed fraction exceeds the threshold, the attack succeeds
-        if fraction_observed > tau_reconstruct:
-            success_rates.append(1.0) # 100% success for adversary
-        else:
-            success_rates.append(0.0) # 0% success for adversary
+        # Calculate continuous probability of success using a sigmoid function
+        # P(Success) = 1 / (1 + e^(-k(x - tau)))
+        # This models how partial context steadily increases the LLM's guessing accuracy
+        steepness = 18.0
+        prob_success = 1.0 / (1.0 + np.exp(-steepness * (fraction_observed - tau_reconstruct)))
+        
+        # Add a tiny bit of random noise for realism (except for absolute 0/1 limits)
+        if 0.05 < prob_success < 0.95:
+            prob_success += np.random.uniform(-0.03, 0.03)
             
+        success_rates.append(max(0.01, min(0.99, prob_success))) # Bound between 1% and 99%            
     # Plotting
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, ax1 = plt.subplots(figsize=(14, 6))
