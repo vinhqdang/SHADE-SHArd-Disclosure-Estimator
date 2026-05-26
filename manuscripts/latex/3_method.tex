@@ -57,7 +57,35 @@ CoShard maximizes a novel penalized objective function, explicitly subtracting t
 By tuning $\lambda$, system administrators can dynamically trace the Pareto frontier. When $\lambda = 0$, CoShard collapses to standard Leiden modularity (maximizing utility, sacrificing privacy). As $\lambda \to \infty$, CoShard actively fractures semantic clusters, heavily prioritizing data security over retrieval coherence.
 
 \subsection{The 2-Phase CoShard Algorithm}
-Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approximate the global maximum using a highly scalable, two-phase iterative heuristic.
+Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approximate the global maximum using a highly scalable, two-phase iterative heuristic, visualized in Figure \ref{fig:coshard_flowchart}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm and 2cm,
+    box/.style={rectangle, draw, fill=blue!10, text width=3.5cm, text centered, rounded corners, minimum height=1cm, font=\small},
+    decision/.style={diamond, draw, fill=red!10, text width=2.5cm, text centered, inner sep=0pt, font=\footnotesize},
+    arrow/.style={thick,->,>=stealth}
+]
+
+% Nodes
+\node (init) [box] {Initialize $G=(V,E)$ \\ Each node in own shard};
+\node (phase1) [box, below=of init] {\textbf{Phase 1: Local Move}\\ Move $v_i$ to neighbor shard to maximize $\mathcal{O}$};
+\node (check1) [decision, below=of phase1, yshift=-0.5cm] {Any node moved?};
+\node (phase2) [box, right=of phase1] {\textbf{Phase 2: Aggregation}\\ Collapse shards into super-nodes};
+\node (finish) [box, below=of check1, yshift=-0.5cm, fill=green!10] {Output final partitions $\mathcal{P}$};
+
+% Arrows
+\draw [arrow] (init) -- (phase1);
+\draw [arrow] (phase1) -- (check1);
+\draw [arrow] (check1) -- node[anchor=south] {Yes} (phase2);
+\draw [arrow] (phase2) |- (phase1);
+\draw [arrow] (check1) -- node[anchor=east] {No} (finish);
+
+\end{tikzpicture}
+\caption{Flowchart of the 2-Phase CoShard Algorithmic Pipeline. The system recursively alternates between local modularity optimization (penalized by SHADE) and graph contraction until convergence.}
+\label{fig:coshard_flowchart}
+\end{figure}
 
 \begin{algorithm}[H]
 \caption{The CoShard Partitioning Algorithm}
