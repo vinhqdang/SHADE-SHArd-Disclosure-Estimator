@@ -1,5 +1,5 @@
 \section{Introduction}
-\IEEEPARstart{T}{he} deployment of Large Language Models (LLMs) over private enterprise data has unlocked unprecedented utility through Retrieval-Augmented Generation (RAG). However, hosting centralized vector databases containing sensitive corporate or medical knowledge poses significant privacy and compliance risks. To mitigate these risks, organizations increasingly rely on distributed architectures, partitioning data across multiple isolated shards. 
+The deployment of Large Language Models (LLMs) over private enterprise data has unlocked unprecedented utility through Retrieval-Augmented Generation (RAG). However, hosting centralized vector databases containing sensitive corporate or medical knowledge poses significant privacy and compliance risks. To mitigate these risks, organizations increasingly rely on distributed architectures, partitioning data across multiple isolated shards. 
 
 While existing partitioning techniques such as K-Means or Leiden clustering excel at maintaining semantic coherence (utility), they inadvertently cluster highly related sensitive documents onto the same shard. This creates a critical vulnerability: if an adversary compromises a single shard or the local LLM instance querying it, they can reconstruct the entire underlying sensitive topic. 
 
