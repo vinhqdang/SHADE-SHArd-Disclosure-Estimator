@@ -3,7 +3,7 @@
 As illustrated in Figure \ref{fig:baseline_comparison}, blindly maximizing semantic coherence (as K-Means or GraphRAG does) yields a catastrophic disclosure penalty, as entire conceptual topics are localized to single shards. Conversely, privacy-first techniques like VertiSplitRAG or DPVoteRAG destroy semantic utility. This fundamental inverse correlation establishes the No-Free-Lunch theorem for RAG partitioning.
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{../figures/fig2_baseline_comparison.png}}
+\centerline{\includegraphics[width=\columnwidth]{figures/fig2_baseline_comparison.png}}
 \caption{Baseline comparison validating the No-Free-Lunch theorem. CoShard successfully balances the high coherence of GraphRAG with the high secrecy of distributed privacy baselines.}
 \label{fig:baseline_comparison}
 \end{figure}
@@ -12,7 +12,7 @@ As illustrated in Figure \ref{fig:baseline_comparison}, blindly maximizing seman
 By varying the $\lambda$ penalty weight, CoShard allows administrators to seamlessly trace the Pareto optimal boundary between utility and privacy (Figure \ref{fig:pareto}).
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{../figures/fig1_pareto_frontier.png}}
+\centerline{\includegraphics[width=\columnwidth]{figures/fig1_pareto_frontier.png}}
 \caption{The Privacy-Utility Pareto Frontier. CoShard strictly dominates traditional RAG splitting baselines and state-of-the-art privacy partitioning frameworks.}
 \label{fig:pareto}
 \end{figure}

@@ -9,7 +9,7 @@ Our proposed technique, CoShard, explicitly optimizes the privacy-utility tradeo
 To intuitively understand the CoShard routing mechanism, consider a subset of highly connected medical queries (Figure \ref{fig:pipeline_overview}).
 
 \begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{../figures/pipeline_overview.png}}
+\centerline{\includegraphics[width=\textwidth]{figures/pipeline_overview.png}}
 \caption{The complete CoShard pipeline. (A) Raw documents and the User Query are embedded into semantic space. (B) A K-NN similarity graph connects highly related topics. (C) The CoShard algorithm explicitly forces connected clusters into different shards (colors) to minimize the SHADE disclosure penalty. (D) At inference, a User Query is safely routed to documents distributed across multiple shards, preventing any single shard from inferring the full topic.}
 \label{fig:pipeline_overview}
 \end{figure*}
