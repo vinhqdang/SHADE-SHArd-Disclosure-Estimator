@@ -1,4 +1,6 @@
-\section{Theoretical Bounds on Reconstruction}
+\section{Privacy Analysis}
+
+\subsection{Theoretical Bounds on Reconstruction}
 To formally prove the privacy guarantees of CoShard, we analyze the system through an information-theoretic lens. Let $Q$ denote the hidden user query topic, and $C$ be the full context of $k$ highly related documents required to answer $Q$. Let $S_i$ be the set of documents stored on Shard $i$. An adversary monitoring Shard $i$ during inference observes only the retrieved subset $R_i = C \cap S_i$.
 
 By the Data Processing Inequality, the mutual information available to the adversary is bounded:
@@ -10,7 +12,7 @@ Standard clustering (e.g., K-Means or GraphRAG) places all $k$ documents into a 
 
 This directly maximizes the conditional entropy $H(Q | R_i)$. When $H(Q | R_i)$ exceeds the critical ambiguity threshold of the underlying LLM, exact topic reconstruction becomes formally impossible.
 
-\section{Empirical Adversarial Attack Simulation}
+\subsection{Empirical Adversarial Attack Simulation}
 To validate these theoretical bounds, we conducted an empirical Adversarial Inversion Attack over state-of-the-art baselines. We map the fraction of context observed by the adversary to a continuous probability of successful reconstruction using a logistic function bounded by a threshold of $\tau = 0.40$.
 
 \begin{figure}[htbp]
