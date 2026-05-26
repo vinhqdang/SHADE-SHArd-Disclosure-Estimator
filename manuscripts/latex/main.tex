@@ -32,65 +32,12 @@ As Large Language Models (LLMs) are increasingly integrated into enterprise Retr
 Data Privacy, Large Language Models, Retrieval-Augmented Generation, Graph Partitioning, Information Security
 \end{IEEEkeywords}
 
-\section{Introduction}
-\IEEEPARstart{T}{he} deployment of Large Language Models (LLMs) over private enterprise data has unlocked unprecedented utility...
-
-\section{Methodology}
-\subsection{The CoShard Pipeline}
-Our proposed technique is outlined visually. We construct a K-Nearest Neighbor (K-NN) similarity graph over the embedding space, and apply a 2-phase modularity maximization algorithm penalized by the SHADE metric.
-
-% You can reference the conceptual diagram (Mermaid) here, or include a high-res PDF export of it.
-
-\subsection{Visualizing the Partition Pipeline}
-To intuitively understand the CoShard routing mechanism, consider a subset of highly connected medical queries (Figure \ref{fig:pipeline_overview}).
-
-\begin{figure*}[htbp]
-\centerline{\includegraphics[width=\textwidth]{../figures/pipeline_overview.png}}
-\caption{The complete CoShard pipeline. (A) Raw documents and the User Query are embedded into semantic space. (B) A K-NN similarity graph connects highly related topics (e.g., Cardiology). (C) The CoShard algorithm explicitly forces connected clusters into different shards (colors) to minimize the SHADE disclosure penalty. (D) At inference, a User Query is safely routed to documents distributed across multiple shards, preventing any single shard from inferring the full topic.}
-\label{fig:pipeline_overview}
-\end{figure*}
-
-\section{Experiments}
-\subsection{The No-Free-Lunch Theorem}
-As illustrated in Figure \ref{fig:baseline_comparison}, blindly maximizing semantic coherence (as K-Means does) yields a catastrophic disclosure penalty.
-
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{../figures/fig2_baseline_comparison.png}}
-\caption{Baseline comparison validating the No-Free-Lunch theorem. CoShard successfully balances the high coherence of Leiden modularity with the high secrecy of Random partitioning.}
-\label{fig:baseline_comparison}
-\end{figure}
-
-\subsection{Pareto Frontier Analysis}
-By varying the $\lambda$ penalty weight, CoShard allows administrators to seamlessly trace the Pareto optimal boundary between utility and privacy (Figure \ref{fig:pareto}).
-
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{../figures/fig1_pareto_frontier.png}}
-\caption{The Privacy-Utility Pareto Frontier. CoShard strictly dominates traditional RAG splitting baselines.}
-\label{fig:pareto}
-\end{figure}
-
-\section{Theoretical Bounds on Reconstruction}
-To formally prove the privacy guarantees of CoShard, we analyze the system through an information-theoretic lens. Let $Q$ denote the hidden user query topic, and $C$ be the full context of $k$ highly related documents required to answer $Q$. Let $S_i$ be the set of documents stored on Shard $i$. An adversary monitoring Shard $i$ during inference observes only the retrieved subset $R_i = C \cap S_i$.
-
-By the Data Processing Inequality, the mutual information available to the adversary is bounded:
-\begin{equation}
-I(Q; R_i) \leq I(Q; C)
-\end{equation}
-
-Standard clustering (e.g., K-Means) places all $k$ documents into a single shard, meaning $R_i = C$. Thus, $I(Q; R_i)$ is maximized, leading to certain topic reconstruction. Conversely, CoShard explicitly minimizes the SHADE penalty, forcing the documents to be uniformly distributed across $m$ shards such that $E[|R_i|] \to k/m$. 
-
-This directly maximizes the conditional entropy $H(Q | R_i)$. When $H(Q | R_i)$ exceeds the critical ambiguity threshold of the underlying LLM, exact topic reconstruction becomes formally impossible.
-
-\section{Empirical Adversarial Attack Simulation}
-To validate these theoretical bounds, we conducted an empirical Adversarial Inversion Attack. We define a reconstruction threshold $\tau = 0.40$; if an adversary observes more than 40\% of a topic's context, they can successfully reconstruct the query intent.
-
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{../figures/fig3_adversarial_success.png}}
-\caption{Adversarial Reconstruction Success Rate. K-Means suffers a total privacy collapse, while CoShard successfully keeps the observed context below the reconstruction threshold, yielding a 0\% adversarial success rate.}
-\label{fig:adversarial_success}
-\end{figure}
-
-As shown in Figure \ref{fig:adversarial_success}, K-Means clustering places 100\% of the topic into a single shard, handing the adversary a 100\% success rate. CoShard, however, distributes the topic such that the maximum context observed by any single shard is strictly bounded to 26\% (well below $\tau$). Consequently, the empirical adversarial success rate plummets to 0\%.
+\input{1_intro.tex}
+\input{2_relate.tex}
+\input{3_method.tex}
+\input{4_eval.tex}
+\input{5_proofs.tex}
+\input{6_conclusion.tex}
 
 \section*{Acknowledgments}
 This work was supported by...
