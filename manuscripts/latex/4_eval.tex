@@ -26,16 +26,16 @@ To rigorously compute the Entity Leakage Rate (ELR), we extracted a predefined s
 \centering
 \caption{ELR Entity Extraction Methodology}
 \label{tab:elr_extraction}
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{l l r r l}
+\begin{tabular}{llrrl}
 \hline
-\textbf{Dataset} & \textbf{Entity Source} & \textbf{Entities} ($|\mathcal{E}|$) & \textbf{Avg Docs/Entity} & \textbf{Extraction Method} \\
+\textbf{Dataset} & \textbf{Entity Source} & \textbf{Entities} $(|\mathcal{E}|)$ & 
+\textbf{Avg. Docs/Entity} & \textbf{Extraction Method} \\
 \hline
-MedQA & Diseases, Drugs, Symptoms & 2,450 & 14.2 & \texttt{SciSpacy} (UMLS linker) \\
-LegalBench & Statutes, Legal Concepts, Task Labels & 1,120 & 22.5 & Regex + Black's Law Dict \\
+MedQA & Diseases, Drugs, Symptoms & 2{,}450 & 14.2 & \texttt{SciSpacy} (UMLS linker) \\
+LegalBench & Statutes, Legal Concepts, Task Labels & 1{,}120 & 22.5 & Regex + Black's Law Dict. \\
 \hline
 \end{tabular}%
-}
+
 \end{table}
 
 \subsection{Baselines}
