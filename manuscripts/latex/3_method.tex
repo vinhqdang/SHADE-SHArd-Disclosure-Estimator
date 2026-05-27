@@ -43,7 +43,7 @@ We explicitly acknowledge that SHADE is a proxy metric structurally related to g
 \begin{equation}
 \text{ELR}(\mathcal{P}) = \frac{1}{|\mathcal{E}|} \sum_{e \in \mathcal{E}} \max_{S_j \in \mathcal{P}} \frac{|D_e \cap S_j|}{|D_e|}
 \end{equation}
-While SHADE acts as the differentiable heuristic used during algorithmic optimization, ELR serves as the independent ground-truth evaluation of reconstruction risk.
+While SHADE acts as the differentiable heuristic used during algorithmic optimization, ELR serves as the independent entity-level proxy for reconstruction exposure. If the ELR for a highly sensitive medical record reaches 1.0, it indicates that a single shard contains the complete context required to reconstruct that record, maximizing the probability of a successful generative inversion attack.
 
 \subsection{The CoShard Objective Function}
 While minimizing SHADE strictly reduces disclosure risk, it inherently destroys the semantic contiguity required by RAG retrievers, severely degrading retrieval utility (demonstrating an empirical privacy-utility trade-off). Therefore, CoShard explicitly formulates semantic sharding as a constrained multi-objective optimization problem.
@@ -93,7 +93,7 @@ Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approxi
 \label{fig:coshard_flowchart}
 \end{figure}
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[H]
 \caption{The CoShard Partitioning Algorithm}
 \renewcommand{\algorithmicrequire}{\textbf{Input:}}
 \renewcommand{\algorithmicensure}{\textbf{Output:}}

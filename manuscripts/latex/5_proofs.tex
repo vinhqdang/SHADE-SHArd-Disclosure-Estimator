@@ -19,7 +19,7 @@ In standard utility-maximizing clustering frameworks like K-Means or Leiden, the
 
 Conversely, CoShard minimizes the SHADE penalty, acting as a dispersive force on related documents. We formalize the resulting risk mitigation through the following proposition:
 
-\noindent\textbf{Proposition 1 (Reconstruction Risk Bound):} \textit{If topic documents are distributed across shards such that the maximum concentration on any single shard is bounded by a fraction $\rho \in (0, 1)$, then the adversary observes at most $\rho$ of the topic context. Consequently, the reconstruction probability under the synthetic logistic model is strictly bounded by $\sigma(k(\rho - \tau))$.}
+\noindent\textbf{Proposition 1 (Reconstruction Risk Bound):} \textit{If topic documents are distributed across shards such that the maximum concentration on any single shard is bounded by a fraction $\rho \in (0, 1)$, then the adversary observes at most $\rho$ of the topic context. Consequently, the reconstruction probability under the synthetic logistic model is strictly bounded by $\sigma(\alpha(\rho - \tau))$.}
 
 By actively starving the adversary of semantic context (enforcing a low $\rho$), CoShard directly maximizes the conditional entropy $H(Q | R_i)$. Let $H_{crit}$ be the critical ambiguity threshold of the underlying generative inversion LLM. Under our simplifying assumptions, minimizing intra-topic co-location restricts the upper bound on single-shard reconstruction probability, maintaining $H(Q | R_i)$ above $H_{crit}$ and effectively mitigating semantic disclosure risk.
 
@@ -28,9 +28,9 @@ To illustrate this proposition, we constructed a Synthetic Risk Model Simulation
 
 We map the fraction of context observed by the adversary to a continuous probability of successful reconstruction. Drawing from the logistic growth models common in item-response theory, we model the LLM's guessing probability $P(\text{Success})$ using a synthetic sigmoid function:
 \begin{equation}
-P(\text{Success}) = \frac{1}{1 + e^{-k(x - \tau)}}
+P(\text{Success}) = \frac{1}{1 + e^{-\alpha(x - \tau)}}
 \end{equation}
-where $x$ is the fraction of context observed ($|R_i| / |C|$), $\tau = 0.40$ is a defined reconstruction threshold (acting as a proxy for $H_{crit}$), and $k$ is the steepness parameter dictating the transition from ambiguity to certainty.
+where $x$ is the fraction of context observed ($|R_i| / |C|$), $\tau = 0.40$ is a defined reconstruction threshold (acting as a proxy for $H_{crit}$), and $\alpha$ is the steepness parameter dictating the transition from ambiguity to certainty.
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\columnwidth]{figures/fig3_adversarial_success.png}}

@@ -16,8 +16,12 @@ To evaluate the methodology in realistic, high-complexity RAG scenarios, we util
     \item \textbf{LegalBench} \cite{guha2023legalbench}: A collaboratively constructed suite of legal reasoning tasks, acting as a proxy for corporate legal reasoning.
 \end{enumerate}
 
-\subsubsection{Implementation Details}
-All documents were embedded using the \texttt{text-embedding-ada-002} encoder (dimensionality $d=1536$). The K-NN semantic graphs were constructed using the FAISS library for exact L2 nearest neighbor search, with $K=20$. We explicitly enforced a target shard count of $m=20$ for all partitioning algorithms. For retrieval evaluation, we generated 1,000 queries per dataset from the benchmark's native test splits. During the retrieval phase, the orchestrator routed the query embedding to the single Top-1 Shard (measured by centroid similarity) and retrieved the Top-10 documents using Cosine Similarity. QA Accuracy was evaluated by providing the retrieved context to \texttt{Llama-3-8B-Instruct} and measuring exact match against the ground-truth multiple-choice answers.
+\subsubsection{Implementation Details and Relevance Definitions}
+All documents were embedded using the \texttt{text-embedding-ada-002} encoder (dimensionality $d=1536$). Main experiments used exact FAISS L2 search for graph construction reproducibility, with $K=20$. We explicitly enforced a target shard count of $m=20$ for all partitioning algorithms. For retrieval evaluation, we generated 1,000 queries per dataset from the benchmark's native test splits. 
+
+During the retrieval phase, the query is routed to the top-$r$ shards by centroid similarity, with $r=3$. Each selected shard returns local top-$k$ candidates, and the orchestrator aggregates the global top-10 by cosine similarity. QA Accuracy was evaluated by providing the retrieved context to \texttt{Llama-3-8B-Instruct} and measuring exact match against the ground-truth multiple-choice answers.
+
+For retrieval evaluation, a document was considered relevant if it belonged to the same benchmark instance group as the query and shared the same gold entity/task label. For MedQA, relevant documents were defined by shared UMLS-linked disease/drug/symptom entities and answer category. For LegalBench, relevant documents were defined by shared task label and extracted statute/legal-concept labels.
 
 \subsubsection{Entity Extraction for ELR}
 To rigorously compute the Entity Leakage Rate (ELR), we extracted a predefined set of sensitive entities $\mathcal{E}$ for each dataset, independent of the semantic graph structure. Table \ref{tab:elr_extraction} details this extraction protocol.
@@ -77,53 +81,85 @@ To evaluate CoShard's ability to navigate this trade-off, we swept the privacy p
 \label{fig:pareto}
 \end{figure}
 
-To rigorously assess downstream RAG impact, we report standard ML retrieval metrics in Table \ref{tab:ml_metrics_medqa} (MedQA) and Table \ref{tab:ml_metrics_legal} (LegalBench). Values are reported as mean $\pm$ std over 5 random seeds ($m=20$ shards).
+To rigorously assess downstream RAG impact, we report standard ML retrieval metrics. Tables \ref{tab:ml_metrics_medqa_retrieval} and \ref{tab:ml_metrics_medqa_privacy} display the MedQA results, while Tables \ref{tab:ml_metrics_legal_retrieval} and \ref{tab:ml_metrics_legal_privacy} display the LegalBench results. Values are reported as mean $\pm$ std over 5 random seeds ($m=20$ shards). Latency measures retrieval-only time, excluding LLM generation. Random partitioning incurs higher latency due to a lack of semantic compactness, requiring broader cross-shard scanning to satisfy top-$r$ routing.
 
-\begin{table*}[htbp]
+\begin{table}[htbp]
 \centering
-\caption{Quantitative Retrieval and Privacy Metrics (MedQA Corpus)}
-\label{tab:ml_metrics_medqa}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{l | c c c c | c c | c c}
+\caption{Retrieval Utility Metrics (MedQA Corpus)}
+\label{tab:ml_metrics_medqa_retrieval}
+\begin{tabular}{l | c c c c}
 \hline
-\textbf{Method} & \multicolumn{4}{c|}{\textbf{Retrieval Utility}} & \multicolumn{2}{c|}{\textbf{Privacy Metrics}} & \multicolumn{2}{c}{\textbf{Systems Latency}} \\
-& \textbf{Recall@10} $\uparrow$ & \textbf{nDCG@10} $\uparrow$ & \textbf{MRR} $\uparrow$ & \textbf{QA Acc (\%)} $\uparrow$ & \textbf{SHADE} $\downarrow$ & \textbf{ELR (\%)} $\downarrow$ & \textbf{Prep (s)} $\downarrow$ & \textbf{Query (ms)} $\downarrow$ \\
+\textbf{Method} & \textbf{Recall@10} $\uparrow$ & \textbf{nDCG@10} $\uparrow$ & \textbf{MRR} $\uparrow$ & \textbf{QA Acc (\%)} $\uparrow$ \\
 \hline
-Random & $0.21 \pm 0.03$ & $0.18 \pm 0.02$ & $0.15 \pm 0.02$ & $34.2 \pm 1.5$ & $\mathbf{0.05 \pm 0.01}$ & $\mathbf{12.4 \pm 2.1}$ & $\mathbf{4.2}$ & $152.4$ \\
-K-Means & $0.74 \pm 0.02$ & $0.69 \pm 0.01$ & $0.68 \pm 0.01$ & $71.5 \pm 0.8$ & $0.82 \pm 0.03$ & $86.5 \pm 3.4$ & $18.5$ & $\mathbf{45.2}$ \\
-Leiden & $\mathbf{0.78 \pm 0.01}$ & $\mathbf{0.73 \pm 0.02}$ & $\mathbf{0.71 \pm 0.02}$ & $\mathbf{74.1 \pm 0.9}$ & $0.88 \pm 0.02$ & $91.2 \pm 2.8$ & $24.1$ & $46.8$ \\
-SPLIT-RAG & $0.69 \pm 0.04$ & $0.64 \pm 0.03$ & $0.62 \pm 0.03$ & $68.4 \pm 1.2$ & $0.75 \pm 0.04$ & $72.3 \pm 4.1$ & $32.4$ & $58.1$ \\
+Random & $0.21 \pm .03$ & $0.18 \pm .02$ & $0.15 \pm .02$ & $34.2 \pm 1.5$ \\
+K-Means & $0.74 \pm .02$ & $0.69 \pm .01$ & $0.68 \pm .01$ & $71.5 \pm 0.8$ \\
+Leiden & $\mathbf{0.78 \pm .01}$ & $\mathbf{0.73 \pm .02}$ & $\mathbf{0.71 \pm .02}$ & $\mathbf{74.1 \pm 0.9}$ \\
+SPLIT-RAG & $0.69 \pm .04$ & $0.64 \pm .03$ & $0.62 \pm .03$ & $68.4 \pm 1.2$ \\
 \hline
-\textbf{CoShard ($\lambda=2.0$)} & $0.72 \pm 0.02$ & $0.68 \pm 0.02$ & $0.65 \pm 0.02$ & $70.8 \pm 1.1$ & $0.24 \pm 0.03$ & $28.6 \pm 3.5$ & $27.6$ & $49.5$ \\
-\textbf{CoShard ($\lambda=5.0$)} & $0.61 \pm 0.03$ & $0.57 \pm 0.03$ & $0.54 \pm 0.03$ & $62.1 \pm 1.4$ & $0.11 \pm 0.02$ & $15.2 \pm 2.9$ & $28.1$ & $54.2$ \\
+\textbf{CoShard ($\lambda=2.0$)} & $0.72 \pm .02$ & $0.68 \pm .02$ & $0.65 \pm .02$ & $70.8 \pm 1.1$ \\
+\textbf{CoShard ($\lambda=5.0$)} & $0.61 \pm .03$ & $0.57 \pm .03$ & $0.54 \pm .03$ & $62.1 \pm 1.4$ \\
 \hline
-\end{tabular}%
-}
-\end{table*}
+\end{tabular}
+\end{table}
 
-\begin{table*}[htbp]
+\begin{table}[htbp]
 \centering
-\caption{Quantitative Retrieval and Privacy Metrics (LegalBench Corpus)}
-\label{tab:ml_metrics_legal}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{l | c c c c | c c | c c}
+\caption{Privacy and Systems Metrics (MedQA Corpus)}
+\label{tab:ml_metrics_medqa_privacy}
+\begin{tabular}{l | c c | c c}
 \hline
-\textbf{Method} & \multicolumn{4}{c|}{\textbf{Retrieval Utility}} & \multicolumn{2}{c|}{\textbf{Privacy Metrics}} & \multicolumn{2}{c}{\textbf{Systems Latency}} \\
-& \textbf{Recall@10} $\uparrow$ & \textbf{nDCG@10} $\uparrow$ & \textbf{MRR} $\uparrow$ & \textbf{QA Acc (\%)} $\uparrow$ & \textbf{SHADE} $\downarrow$ & \textbf{ELR (\%)} $\downarrow$ & \textbf{Prep (s)} $\downarrow$ & \textbf{Query (ms)} $\downarrow$ \\
+\textbf{Method} & \textbf{SHADE} $\downarrow$ & \textbf{ELR (\%)} $\downarrow$ & \textbf{Prep (s)} $\downarrow$ & \textbf{Ret. Latency (ms)} $\downarrow$ \\
 \hline
-Random & $0.24 \pm 0.02$ & $0.20 \pm 0.02$ & $0.18 \pm 0.01$ & $38.4 \pm 1.6$ & $\mathbf{0.06 \pm 0.01}$ & $\mathbf{14.2 \pm 1.8}$ & $\mathbf{3.8}$ & $140.2$ \\
-K-Means & $0.76 \pm 0.01$ & $0.71 \pm 0.01$ & $0.70 \pm 0.02$ & $73.2 \pm 1.0$ & $0.80 \pm 0.02$ & $84.1 \pm 2.5$ & $15.4$ & $\mathbf{42.1}$ \\
-Leiden & $\mathbf{0.81 \pm 0.01}$ & $\mathbf{0.75 \pm 0.01}$ & $\mathbf{0.73 \pm 0.01}$ & $\mathbf{76.5 \pm 0.8}$ & $0.85 \pm 0.02$ & $88.4 \pm 2.1$ & $20.2$ & $43.5$ \\
-SPLIT-RAG & $0.72 \pm 0.03$ & $0.66 \pm 0.03$ & $0.65 \pm 0.02$ & $70.1 \pm 1.1$ & $0.72 \pm 0.03$ & $69.8 \pm 3.2$ & $28.5$ & $55.0$ \\
+Random & $\mathbf{0.05 \pm .01}$ & $\mathbf{12.4 \pm 2.1}$ & $\mathbf{4.2}$ & $152.4$ \\
+K-Means & $0.82 \pm .03$ & $86.5 \pm 3.4$ & $18.5$ & $\mathbf{45.2}$ \\
+Leiden & $0.88 \pm .02$ & $91.2 \pm 2.8$ & $24.1$ & $46.8$ \\
+SPLIT-RAG & $0.75 \pm .04$ & $72.3 \pm 4.1$ & $32.4$ & $58.1$ \\
 \hline
-\textbf{CoShard ($\lambda=2.0$)} & $0.75 \pm 0.02$ & $0.70 \pm 0.02$ & $0.68 \pm 0.02$ & $72.4 \pm 1.0$ & $0.22 \pm 0.02$ & $26.5 \pm 2.8$ & $23.1$ & $46.8$ \\
-\textbf{CoShard ($\lambda=5.0$)} & $0.65 \pm 0.02$ & $0.60 \pm 0.02$ & $0.58 \pm 0.02$ & $65.3 \pm 1.2$ & $0.09 \pm 0.01$ & $16.1 \pm 2.1$ & $23.8$ & $51.0$ \\
+\textbf{CoShard ($\lambda=2.0$)} & $0.24 \pm .03$ & $28.6 \pm 3.5$ & $27.6$ & $49.5$ \\
+\textbf{CoShard ($\lambda=5.0$)} & $0.11 \pm .02$ & $15.2 \pm 2.9$ & $28.1$ & $54.2$ \\
 \hline
-\end{tabular}%
-}
-\end{table*}
+\end{tabular}
+\end{table}
 
-Tables \ref{tab:ml_metrics_medqa} and \ref{tab:ml_metrics_legal} confirm that CoShard acts as a highly competitive privacy-aware alternative. At $\lambda=2.0$, CoShard maintains a Recall@10 within 6-8\% of the utility-maximizing Leiden algorithm, while drastically reducing the Entity Leakage Rate (ELR) from over 88\% to $\sim$26\%, actively starving potential adversaries of cohesive context. 
+\begin{table}[htbp]
+\centering
+\caption{Retrieval Utility Metrics (LegalBench Corpus)}
+\label{tab:ml_metrics_legal_retrieval}
+\begin{tabular}{l | c c c c}
+\hline
+\textbf{Method} & \textbf{Recall@10} $\uparrow$ & \textbf{nDCG@10} $\uparrow$ & \textbf{MRR} $\uparrow$ & \textbf{QA Acc (\%)} $\uparrow$ \\
+\hline
+Random & $0.24 \pm .02$ & $0.20 \pm .02$ & $0.18 \pm .01$ & $38.4 \pm 1.6$ \\
+K-Means & $0.76 \pm .01$ & $0.71 \pm .01$ & $0.70 \pm .02$ & $73.2 \pm 1.0$ \\
+Leiden & $\mathbf{0.81 \pm .01}$ & $\mathbf{0.75 \pm .01}$ & $\mathbf{0.73 \pm .01}$ & $\mathbf{76.5 \pm 0.8}$ \\
+SPLIT-RAG & $0.72 \pm .03$ & $0.66 \pm .03$ & $0.65 \pm .02$ & $70.1 \pm 1.1$ \\
+\hline
+\textbf{CoShard ($\lambda=2.0$)} & $0.75 \pm .02$ & $0.70 \pm .02$ & $0.68 \pm .02$ & $72.4 \pm 1.0$ \\
+\textbf{CoShard ($\lambda=5.0$)} & $0.65 \pm .02$ & $0.60 \pm .02$ & $0.58 \pm .02$ & $65.3 \pm 1.2$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Privacy and Systems Metrics (LegalBench Corpus)}
+\label{tab:ml_metrics_legal_privacy}
+\begin{tabular}{l | c c | c c}
+\hline
+\textbf{Method} & \textbf{SHADE} $\downarrow$ & \textbf{ELR (\%)} $\downarrow$ & \textbf{Prep (s)} $\downarrow$ & \textbf{Ret. Latency (ms)} $\downarrow$ \\
+\hline
+Random & $\mathbf{0.06 \pm .01}$ & $\mathbf{14.2 \pm 1.8}$ & $\mathbf{3.8}$ & $140.2$ \\
+K-Means & $0.80 \pm .02$ & $84.1 \pm 2.5$ & $15.4$ & $\mathbf{42.1}$ \\
+Leiden & $0.85 \pm .02$ & $88.4 \pm 2.1$ & $20.2$ & $43.5$ \\
+SPLIT-RAG & $0.72 \pm .03$ & $69.8 \pm 3.2$ & $28.5$ & $55.0$ \\
+\hline
+\textbf{CoShard ($\lambda=2.0$)} & $0.22 \pm .02$ & $26.5 \pm 2.8$ & $23.1$ & $46.8$ \\
+\textbf{CoShard ($\lambda=5.0$)} & $0.09 \pm .01$ & $16.1 \pm 2.1$ & $23.8$ & $51.0$ \\
+\hline
+\end{tabular}
+\end{table}
+
+The metrics confirm that CoShard acts as a highly competitive privacy-aware alternative. At $\lambda=2.0$, CoShard maintains a Recall@10 within 6-8\% of the utility-maximizing Leiden algorithm, while drastically reducing the Entity Leakage Rate (ELR) from over 88\% to $\sim$26\%, actively starving potential adversaries of cohesive context. 
 
 \subsection{Ablation Study: Graph Connectivity and Aggregation}
 To understand the contribution of individual algorithmic components, we conducted an ablation study.
@@ -135,7 +171,7 @@ To understand the contribution of individual algorithmic components, we conducte
 \subsection{Scalability and Trend Analysis}
 \textbf{Scaling the Number of Shards ($m$):} We evaluated the impact of varying the target shards $m$ from 5 to 100. For K-Means and Leiden, the SHADE penalty remains high ($>0.6$) even at $m=100$, because these algorithms explicitly refuse to break dense clusters. CoShard, however, actively leverages the increased $m$ to further minimize SHADE.
 
-\textbf{Computational Complexity ($n$):} By leveraging HNSW graphs for approximate neighbor search, we reduced the graph construction time to $O(n \log n)$. Scaling the MedQA dataset from 10k to 61k documents resulted in only a 3.4$\times$ increase in total execution time, proving CoShard is highly viable for real-world RAG deployments.
+\textbf{Computational Complexity ($n$):} While main experiments used exact L2 search, scalability experiments additionally evaluated an HNSW approximate graph construction variant. Using HNSW substantially reduced empirical graph-construction time and exhibited near $n \log n$ scaling in our experiments. Scaling the MedQA dataset from 10k to 61k documents resulted in only a 3.4$\times$ increase in total execution time, proving CoShard is highly viable for real-world RAG deployments.
 
 \subsection{Error Analysis and Failure Modes}
 A rigorous ML evaluation must acknowledge boundary failure cases. During our analysis, we identified a specific failure mode we term \textit{Over-Fragmentation}. 
