@@ -98,11 +98,11 @@ Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approxi
 \renewcommand{\algorithmicrequire}{\textbf{Input:}}
 \renewcommand{\algorithmicensure}{\textbf{Output:}}
 \begin{algorithmic}[1]
-\REQUIRE Similarity Graph $G=(V, E, W)$, Privacy Penalty $\lambda$
+\REQUIRE Similarity Graph $G=(V, E, W)$, Privacy Penalty $\lambda$, Target Shards $m$
 \ENSURE Partition assignments $\mathcal{P} = \{S_1, \dots, S_m\}$
 \STATE Initialize each node $v_i$ into its own distinct shard: $S_i = \{v_i\}$
 \STATE $\text{converged} \leftarrow \text{False}$
-\WHILE{not converged}
+\WHILE{not converged and $|\mathcal{P}| > m$}
     \STATE $\text{converged} \leftarrow \text{True}$
     \STATE \textit{// Phase 1: Local Optimization}
     \FOR{each node $v_i \in V$ in random order}
@@ -132,12 +132,16 @@ Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approxi
         \STATE Sum edge weights between corresponding super-nodes
     \ENDIF
 \ENDWHILE
+\WHILE{$|\mathcal{P}| > m$}
+    \STATE \textit{// Phase 3: Forced Merging to target constraint}
+    \STATE Merge the two smallest adjacent shards $S_a, S_b$ that minimize $\Delta \text{SHADE}$
+\ENDWHILE
 \STATE \textbf{return} $\mathcal{P}$
 \end{algorithmic}
 \label{alg:coshard}
 \end{algorithm}
 
-As detailed in Algorithm \ref{alg:coshard}, Phase 1 evaluates the local move of every node $v_i$ to a neighboring shard. The move is only accepted if the increase in semantic cohesion ($\Delta Q$) outweighs the resulting privacy penalty ($\lambda \cdot \Delta \text{SHADE}$). Phase 2 contracts the graph by collapsing identical shard assignments into super-nodes, reducing the search space and allowing the algorithm to iteratively scale to massive enterprise corpora with millions of embeddings.
+As detailed in Algorithm \ref{alg:coshard}, Phase 1 evaluates the local move of every node $v_i$ to a neighboring shard. The move is only accepted if the increase in semantic cohesion ($\Delta Q$) outweighs the resulting privacy penalty ($\lambda \cdot \Delta \text{SHADE}$). Phase 2 contracts the graph by collapsing identical shard assignments into super-nodes, reducing the search space. To enforce hardware or database topology constraints, the algorithm accepts a target shard count $m$. If the standard modularity maximization converges with $|\mathcal{P}| > m$, an explicit forced-merging phase iteratively combines the smallest adjacent shards that induce the minimal SHADE penalty until exactly $m$ shards remain, ensuring balanced enterprise deployments.
 
 \subsection{Visualizing the Partition Pipeline}
 To intuitively understand the CoShard routing mechanism, consider a subset of highly connected medical queries (Figure \ref{fig:pipeline_overview}).
