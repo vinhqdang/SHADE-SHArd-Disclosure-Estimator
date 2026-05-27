@@ -1,7 +1,7 @@
 \section{Methodology}
 \label{sec:methodology}
 
-In this section, we rigorously formalize the semantic reconstruction threat model and define the SHArd Disclosure Estimator (SHADE). We subsequently detail the construction of the CoShard algorithm, demonstrating how it explicitly optimizes the trade-off between RAG utility and cryptographic privacy through a constrained graph partitioning objective.
+In this section, we rigorously formalize the semantic reconstruction threat model and define the SHArd Disclosure Estimator (SHADE). We subsequently detail the construction of the CoShard algorithm, demonstrating how it explicitly optimizes the trade-off between RAG utility and disclosure risk through a constrained graph partitioning objective.
 
 \subsection{Formalizing the Semantic Vector Space}
 Let $\mathcal{D} = \{d_1, d_2, \dots, d_n\}$ represent an enterprise knowledge base consisting of $n$ sensitive documents. In a standard Retrieval-Augmented Generation (RAG) pipeline, an embedding function $f_\theta : \mathcal{D} \to \mathbb{R}^d$, parameterized by a pre-trained neural encoder (e.g., \texttt{text-embedding-ada-002} or \texttt{BGE-large}), maps each discrete document $d_i$ to a dense, continuous vector representation $\mathbf{v}_i \in \mathcal{V}$, where $d$ is the dimensionality of the embedding space.
@@ -37,10 +37,16 @@ The SHADE metric calculates the probability that two strongly connected semantic
 \text{SHADE}(\mathcal{P}) = \frac{\sum_{(i, k) \in E} w_{ik} \cdot \delta(i, k)}{\sum_{(i, k) \in E} w_{ik}}
 \end{equation}
 
-A SHADE score approaching $1.0$ indicates catastrophic privacy failure: highly related sensitive topics are densely packed into single shards (typical of K-Means or GraphRAG). A SHADE score approaching $0.0$ indicates perfect semantic distribution: sensitive topics are uniformly fragmented across the network.
+A SHADE score approaching $1.0$ indicates that highly related semantic topics are densely packed into single shards (typical of K-Means or GraphRAG). A SHADE score approaching $0.0$ indicates that semantic edges are uniformly fragmented across the network. 
+
+We explicitly acknowledge that SHADE is a proxy metric structurally related to graph modularity. To ensure our privacy evaluation is mathematically independent from the utility graph, we introduce a second, orthogonal metric: the \textbf{Entity Leakage Rate (ELR)}. We define a set of known sensitive entities $\mathcal{E}$ (e.g., specific patient IDs or confidential project names). For each entity $e \in \mathcal{E}$, let $D_e \subset \mathcal{D}$ be the subset of documents mentioning $e$. The ELR measures the maximum concentration of any entity's documents within a single shard:
+\begin{equation}
+\text{ELR}(\mathcal{P}) = \frac{1}{|\mathcal{E}|} \sum_{e \in \mathcal{E}} \max_{S_j \in \mathcal{P}} \frac{|D_e \cap S_j|}{|D_e|}
+\end{equation}
+While SHADE acts as the differentiable heuristic used during algorithmic optimization, ELR serves as the independent ground-truth evaluation of reconstruction risk.
 
 \subsection{The CoShard Objective Function}
-While minimizing SHADE guarantees privacy, it inherently destroys the semantic contiguity required by RAG retrievers, severely degrading retrieval utility (the No-Free-Lunch theorem). Therefore, CoShard explicitly formulates semantic sharding as a constrained multi-objective optimization problem.
+While minimizing SHADE strictly reduces disclosure risk, it inherently destroys the semantic contiguity required by RAG retrievers, severely degrading retrieval utility (demonstrating an empirical privacy-utility trade-off). Therefore, CoShard explicitly formulates semantic sharding as a constrained multi-objective optimization problem.
 
 To measure retrieval utility, we employ the standard Leiden modularity $Q$ \cite{ng2001spectral}, which measures the density of links inside communities compared to links between communities. The standard modularity for partition $\mathcal{P}$ is defined as:
 \begin{equation}
