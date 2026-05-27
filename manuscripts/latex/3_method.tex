@@ -87,11 +87,11 @@ Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approxi
 \label{fig:coshard_flowchart}
 \end{figure}
 
-\begin{algorithm}[H]
+\begin{algorithm}[htbp]
 \caption{The CoShard Partitioning Algorithm}
-\begin{algorithmic}[1]
 \renewcommand{\algorithmicrequire}{\textbf{Input:}}
 \renewcommand{\algorithmicensure}{\textbf{Output:}}
+\begin{algorithmic}[1]
 \REQUIRE Similarity Graph $G=(V, E, W)$, Privacy Penalty $\lambda$
 \ENSURE Partition assignments $\mathcal{P} = \{S_1, \dots, S_m\}$
 \STATE Initialize each node $v_i$ into its own distinct shard: $S_i = \{v_i\}$
@@ -126,7 +126,7 @@ Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approxi
         \STATE Sum edge weights between corresponding super-nodes
     \ENDIF
 \ENDWHILE
-\RETURN $\mathcal{P}$
+\STATE \textbf{return} $\mathcal{P}$
 \end{algorithmic}
 \label{alg:coshard}
 \end{algorithm}
