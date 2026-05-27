@@ -1,7 +1,7 @@
 \section{Methodology}
 \label{sec:methodology}
 
-In this section, we rigorously formalize the semantic reconstruction threat model and define the SHArd Disclosure Estimator (SHADE). We subsequently detail the construction of the CoShard algorithm, demonstrating how it explicitly optimizes the trade-off between RAG utility and disclosure risk through a constrained graph partitioning objective.
+In this section, we rigorously formalize the semantic reconstruction threat model and define the SHArd Disclosure Estimator (SHADE). We subsequently detail the construction of the CoShard algorithm, demonstrating how it explicitly optimizes the trade-off between RAG utility and topological exposure through a constrained graph partitioning objective.
 
 \subsection{Formalizing the Semantic Vector Space}
 Let $\mathcal{D} = \{d_1, d_2, \dots, d_n\}$ represent an enterprise knowledge base consisting of $n$ sensitive documents. In a standard Retrieval-Augmented Generation (RAG) pipeline, an embedding function $f_\theta : \mathcal{D} \to \mathbb{R}^d$, parameterized by a pre-trained neural encoder (e.g., \texttt{text-embedding-ada-002} or \texttt{BGE-large}), maps each discrete document $d_i$ to a dense, continuous vector representation $\mathbf{v}_i \in \mathcal{V}$, where $d$ is the dimensionality of the embedding space.
@@ -43,10 +43,10 @@ We explicitly acknowledge that SHADE is a proxy metric structurally related to g
 \begin{equation}
 \text{ELR}(\mathcal{P}) = \frac{1}{|\mathcal{E}|} \sum_{e \in \mathcal{E}} \max_{S_j \in \mathcal{P}} \frac{|D_e \cap S_j|}{|D_e|}
 \end{equation}
-While SHADE acts as the differentiable heuristic used during algorithmic optimization, ELR serves as the independent entity-level proxy for reconstruction exposure. If the ELR for a highly sensitive medical record reaches 1.0, it indicates that a single shard contains the complete context required to reconstruct that record, maximizing the probability of a successful generative inversion attack.
+While SHADE acts as the differentiable heuristic used during algorithmic optimization, ELR serves as the independent entity-level proxy for reconstruction exposure. If the ELR for a highly sensitive medical record reaches 1.0, it indicates that a single shard contains the complete context required to reconstruct that record, maximizing the probability of successful entity extraction.
 
 \subsection{The CoShard Objective Function}
-While minimizing SHADE strictly reduces disclosure risk, it inherently destroys the semantic contiguity required by RAG retrievers, severely degrading retrieval utility (demonstrating an empirical privacy-utility trade-off). Therefore, CoShard explicitly formulates semantic sharding as a constrained multi-objective optimization problem.
+While minimizing SHADE strictly reduces disclosure risk, it inherently destroys the semantic contiguity required by RAG retrievers, severely degrading retrieval utility (demonstrating an empirical exposure-utility trade-off). Therefore, CoShard explicitly formulates semantic sharding as a constrained multi-objective optimization problem.
 
 To measure retrieval utility, we employ the standard Leiden modularity $Q$ \cite{ng2001spectral}, which measures the density of links inside communities compared to links between communities. The standard modularity for partition $\mathcal{P}$ is defined as:
 \begin{equation}
@@ -54,13 +54,13 @@ Q(G, \mathcal{P}) = \frac{1}{2M} \sum_{i, k} \left( w_{ik} - \gamma \frac{d_i d_
 \end{equation}
 where $M$ is the total sum of edge weights, $d_i$ is the weighted degree of node $i$, and $\gamma$ is the resolution parameter.
 
-CoShard maximizes a novel penalized objective function, explicitly subtracting the SHADE metric weighted by a privacy constraint hyperparameter $\lambda \geq 0$:
+CoShard maximizes a novel penalized objective function, explicitly subtracting the SHADE metric weighted by a topological exposure constraint hyperparameter $\lambda \geq 0$:
 \begin{equation}
 \mathcal{O}_{\text{CoShard}} = Q(G, \mathcal{P}) - \lambda \cdot \text{SHADE}(\mathcal{P})
 \label{eq:coshard_objective}
 \end{equation}
 
-By tuning $\lambda$, system administrators can dynamically trace the Pareto frontier. When $\lambda = 0$, CoShard collapses to standard Leiden modularity (maximizing utility, sacrificing privacy). As $\lambda \to \infty$, CoShard actively fractures semantic clusters, heavily prioritizing data security over retrieval coherence.
+By tuning $\lambda$, system administrators can dynamically trace the Pareto frontier. When $\lambda = 0$, CoShard collapses to standard Leiden modularity (maximizing utility, sacrificing data isolation). As $\lambda \to \infty$, CoShard actively fractures semantic clusters, heavily prioritizing data security over retrieval coherence.
 
 \subsection{The 2-Phase CoShard Algorithm}
 Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approximate the global maximum using a highly scalable, two-phase iterative heuristic, visualized in Figure \ref{fig:coshard_flowchart}.
@@ -98,7 +98,7 @@ Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approxi
 \renewcommand{\algorithmicrequire}{\textbf{Input:}}
 \renewcommand{\algorithmicensure}{\textbf{Output:}}
 \begin{algorithmic}[1]
-\REQUIRE Similarity Graph $G=(V, E, W)$, Privacy Penalty $\lambda$, Target Shards $m$
+\REQUIRE Similarity Graph $G=(V, E, W)$, Exposure Penalty $\lambda$, Target Shards $m$
 \ENSURE Partition assignments $\mathcal{P} = \{S_1, \dots, S_m\}$
 \STATE Initialize each node $v_i$ into its own distinct shard: $S_i = \{v_i\}$
 \STATE $\text{converged} \leftarrow \text{False}$
@@ -141,7 +141,7 @@ Maximizing Equation \ref{eq:coshard_objective} is an NP-hard problem. We approxi
 \label{alg:coshard}
 \end{algorithm}
 
-As detailed in Algorithm \ref{alg:coshard}, Phase 1 evaluates the local move of every node $v_i$ to a neighboring shard. The move is only accepted if the increase in semantic cohesion ($\Delta Q$) outweighs the resulting privacy penalty ($\lambda \cdot \Delta \text{SHADE}$). Phase 2 contracts the graph by collapsing identical shard assignments into super-nodes, reducing the search space. To enforce hardware or database topology constraints, the algorithm accepts a target shard count $m$. If the standard modularity maximization converges with $|\mathcal{P}| > m$, an explicit forced-merging phase iteratively combines the smallest adjacent shards that induce the minimal SHADE penalty until exactly $m$ shards remain, ensuring balanced enterprise deployments.
+As detailed in Algorithm \ref{alg:coshard}, Phase 1 evaluates the local move of every node $v_i$ to a neighboring shard. The move is only accepted if the increase in semantic cohesion ($\Delta Q$) outweighs the resulting topological penalty ($\lambda \cdot \Delta \text{SHADE}$). Phase 2 contracts the graph by collapsing identical shard assignments into super-nodes, reducing the search space. To enforce hardware or database topology constraints, the algorithm accepts a target shard count $m$. If the standard modularity maximization converges with $|\mathcal{P}| > m$, an explicit forced-merging phase iteratively combines the smallest adjacent shards that induce the minimal SHADE penalty until exactly $m$ shards remain, ensuring balanced enterprise deployments.
 
 \subsection{Visualizing the Partition Pipeline}
 To intuitively understand the CoShard routing mechanism, consider a subset of highly connected medical queries (Figure \ref{fig:pipeline_overview}).
